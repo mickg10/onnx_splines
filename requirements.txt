@@ -1,0 +1,6 @@
+onnx>=1.15.0
+onnxscript>=0.1.0
+onnxruntime>=1.16.3
+numpy>=1.26.0
+scipy>=1.11.4
+matplotlib>=3.8.2
