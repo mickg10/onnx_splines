@@ -37,54 +37,99 @@ def poly7_2(x):
 def tanh_func(x):
     return np.tanh(x)
 
-def compare_splines(func_name, func, domain):
-    """Compare different spline implementations."""
-    # Generate x values
-    x = np.linspace(domain[0], domain[1], 20)
-    x_full = np.linspace(domain[0], domain[1], 100)
+def plot_all_spline_comparisons(test_cases):
+    """Plot all spline comparisons in a single figure."""
+    n_funcs = len(test_cases)
+    fig = plt.figure(figsize=(20, 4*n_funcs))
+    gs = plt.GridSpec(n_funcs, 1, figure=fig, hspace=0.4)
     
-    # Get true values
-    y_true = func(x_full)
+    for idx, (func_name, func, domain) in enumerate(test_cases):
+        # Generate data
+        x = np.linspace(domain[0], domain[1], 20)  # Fewer points for fitting
+        x_full = np.linspace(domain[0], domain[1], 200)  # More points for evaluation
+        y = func(x)
+        y_true = func(x_full)
+        
+        # Fit splines
+        scipy_spline = CubicSpline(x, y)
+        pure_spline = PurePythonCubicSpline(x, y)
+        
+        # Get coefficients from scipy spline for ONNX
+        a = scipy_spline.c[3]
+        b = scipy_spline.c[2]
+        c = scipy_spline.c[1]
+        d = scipy_spline.c[0]
+        
+        # Create and evaluate splines
+        y_scipy = scipy_spline(x_full)
+        y_pure = pure_spline(x_full)
+        y_onnx = evaluate_spline('/tmp/spline.onnx', x_full, x[:-1], a, b, c, d)
+        
+        # Calculate derivatives
+        dx = x_full[1] - x_full[0]
+        dy_true = np.gradient(y_true, dx)
+        dy_scipy = np.gradient(y_scipy, dx)
+        dy_pure = np.gradient(y_pure, dx)
+        dy_onnx = np.gradient(y_onnx, dx)
+        
+        # Calculate differences (errors)
+        diff_scipy = np.abs(y_true - y_scipy)
+        diff_pure = np.abs(y_true - y_pure)
+        diff_onnx = np.abs(y_true - y_onnx)
+        
+        # Create subplot with twin axis
+        ax1 = fig.add_subplot(gs[idx])
+        ax2 = ax1.twinx()
+        
+        # Plot values and derivatives on left axis
+        lines1 = []
+        # Plot true function and spline fits
+        lines1.extend(ax1.plot(x_full, y_true, 'k-', label='True', linewidth=2))
+        lines1.extend(ax1.plot(x_full, y_scipy, 'r--', label='SciPy', alpha=0.7))
+        lines1.extend(ax1.plot(x_full, y_pure, 'g--', label='Pure Python', alpha=0.7))
+        lines1.extend(ax1.plot(x_full, y_onnx, 'b--', label='ONNX', alpha=0.7))
+        
+        # Plot knot points
+        lines1.extend(ax1.plot(x, y, 'ko', label='Knot Points', markersize=6))
+        
+        # Plot derivatives with thinner lines and different style
+        lines1.extend(ax1.plot(x_full, dy_true, 'k:', label='True d/dx', linewidth=1, alpha=0.5))
+        lines1.extend(ax1.plot(x_full, dy_scipy, 'r:', label='SciPy d/dx', alpha=0.5, linewidth=1))
+        lines1.extend(ax1.plot(x_full, dy_pure, 'g:', label='Pure d/dx', alpha=0.5, linewidth=1))
+        lines1.extend(ax1.plot(x_full, dy_onnx, 'b:', label='ONNX d/dx', alpha=0.5, linewidth=1))
+        
+        # Plot differences on right axis with markers to make them more visible
+        lines2 = []
+        lines2.extend(ax2.plot(x_full, diff_scipy, 'r-.', label='SciPy Error', alpha=0.7, marker='.', markersize=2, markevery=10))
+        lines2.extend(ax2.plot(x_full, diff_pure, 'g-.', label='Pure Error', alpha=0.7, marker='.', markersize=2, markevery=10))
+        lines2.extend(ax2.plot(x_full, diff_onnx, 'b-.', label='ONNX Error', alpha=0.7, marker='.', markersize=2, markevery=10))
+        
+        # Set labels and title
+        ax1.set_title(f'{func_name} - Function Values, Derivatives, and Errors', pad=20)
+        ax1.set_xlabel('x')
+        ax1.set_ylabel('Value / Derivative')
+        ax2.set_ylabel('Absolute Error (log scale)')
+        
+        # Set y-scale for error axis to log
+        ax2.set_yscale('log')
+        
+        # Add grid
+        ax1.grid(True, alpha=0.3)
+        
+        # Combine legends
+        lines = lines1 + lines2
+        labels = [l.get_label() for l in lines]
+        ax1.legend(lines, labels, loc='upper left', bbox_to_anchor=(1.15, 1.0))
+        
+        # Print errors
+        print(f"\nResults for {func_name}:")
+        print(f"Max error (SciPy): {np.max(diff_scipy):.2e}")
+        print(f"Max error (Pure): {np.max(diff_pure):.2e}")
+        print(f"Max error (ONNX): {np.max(diff_onnx):.2e}")
     
-    # Get scipy interpolation
-    cs = CubicSpline(x, func(x))
-    y_scipy = cs(x_full)
-    
-    # Get pure python interpolation
-    pure_spline = PurePythonCubicSpline(x, func(x))
-    y_pure = pure_spline(x_full)
-    
-    # Get coefficients from scipy spline
-    a = cs.c[3]
-    b = cs.c[2]
-    c = cs.c[1]
-    d = cs.c[0]
-    
-    # Get ONNX predictions
-    y_onnx = evaluate_spline('/tmp/spline.onnx', x_full, x[:-1], a, b, c, d)
-    
-    # Calculate errors
-    mae_scipy = np.mean(np.abs(y_true - y_scipy))
-    mae_pure = np.mean(np.abs(y_true - y_pure))
-    mae_onnx = np.mean(np.abs(y_true - y_onnx))
-    
-    max_error_scipy = np.max(np.abs(y_true - y_scipy))
-    max_error_pure = np.max(np.abs(y_true - y_pure))
-    max_error_onnx = np.max(np.abs(y_true - y_onnx))
-    
-    print(f"\nResults for {func_name}:")
-    print(f"Max error (SciPy): {max_error_scipy:.2e}")
-    print(f"Max error (Pure): {max_error_pure:.2e}")
-    print(f"Max error (ONNX): {max_error_onnx:.2e}")
-    
-    return {
-        'x': x_full,
-        'y_true': y_true,
-        'y_scipy': y_scipy,
-        'y_pure': y_pure,
-        'y_onnx': y_onnx,
-        'func_name': func_name
-    }
+    plt.tight_layout()
+    plt.savefig('spline_comparison.png', dpi=300, bbox_inches='tight')
+    plt.show()
 
 def main():
     """Run the main comparison."""
@@ -92,9 +137,6 @@ def main():
     print("-" * 80)
     print(f"{'Function':<14}{'SciPy MAE':<12}{'Pure MAE':<12}{'ONNX MAE':<12}")
     print("-" * 80)
-    
-    # Create a single figure with subplots
-    fig = plt.figure(figsize=(20, 15))
     
     # Define test functions and their domains
     test_cases = [
@@ -106,47 +148,11 @@ def main():
         ('sine_cosine', sine_cosine, (0, 2*np.pi)),
         ('poly7_1', poly7_1, (-1, 1)),
         ('poly7_2', poly7_2, (-1, 1)),
-        ('tanh', tanh_func, (-2, 2))  # Using wider domain to show the asymptotic behavior
+        ('tanh', tanh_func, (-2, 2))
     ]
     
-    # Create subplots
-    for i, (func_name, func, domain) in enumerate(test_cases, 1):
-        results = compare_splines(func_name, func, domain)
-        
-        ax1 = fig.add_subplot(3, 3, i)
-        
-        # Plot splines on left axis
-        ax1.plot(results['x'], results['y_true'], 'k-', label='True', alpha=0.5)
-        ax1.plot(results['x'], results['y_scipy'], 'r--', label='SciPy')
-        ax1.plot(results['x'], results['y_pure'], 'g:', label='Pure Python')
-        ax1.plot(results['x'], results['y_onnx'], 'b-.', label='ONNX')
-        ax1.set_title(results['func_name'])
-        ax1.grid(True)
-        
-        # Create right axis for errors
-        ax2 = ax1.twinx()
-        
-        # Calculate and plot errors
-        error_scipy = np.abs(results['y_true'] - results['y_scipy'])
-        error_pure = np.abs(results['y_true'] - results['y_pure'])
-        error_onnx = np.abs(results['y_true'] - results['y_onnx'])
-        
-        ax2.plot(results['x'], error_scipy, 'r:', alpha=0.3, label='SciPy Error')
-        ax2.plot(results['x'], error_pure, 'g:', alpha=0.3, label='Pure Error')
-        ax2.plot(results['x'], error_onnx, 'b:', alpha=0.3, label='ONNX Error')
-        ax2.set_yscale('log')
-        ax2.tick_params(axis='y', labelcolor='gray')
-        
-        if i == 1:  # Only show legends for the first subplot
-            lines1, labels1 = ax1.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-    
-    plt.tight_layout()
-    plt.savefig('spline_comparison.png')
-    plt.show()
-    print("-" * 80)
-    print("\nPlots have been saved as 'spline_comparison.png'")
+    # Plot all comparisons in a single figure
+    plot_all_spline_comparisons(test_cases)
 
 if __name__ == "__main__":
     # Create and save ONNX model
