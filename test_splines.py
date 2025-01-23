@@ -2,55 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 import os
-from spline_model import create_cubic_spline, save_spline_model, evaluate_spline
-
-class PurePythonCubicSpline:
-    """Pure Python implementation of cubic spline interpolation."""
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.n = len(x)
-        
-        h = np.diff(x)
-        dy = np.diff(y)
-        
-        # Get linear system coefficients
-        A = np.zeros((self.n, self.n))
-        b = np.zeros(self.n)
-        
-        # Interior points
-        for i in range(1, self.n-1):
-            A[i, i-1:i+2] = [h[i-1], 2*(h[i-1] + h[i]), h[i]]
-            b[i] = 3*(dy[i]/h[i] - dy[i-1]/h[i-1])
-        
-        # Boundary conditions (natural spline)
-        A[0, 0] = 1
-        A[-1, -1] = 1
-        
-        # Solve for c coefficients
-        self.c = np.linalg.solve(A, b)
-        
-        # Get remaining coefficients
-        self.a = y[:-1]
-        self.b = dy/h - h*(2*self.c[:-1] + self.c[1:])/3
-        self.d = (self.c[1:] - self.c[:-1])/(3*h)
-    
-    def __call__(self, x_new):
-        """Evaluate the spline at new points."""
-        y_new = np.zeros_like(x_new)
-        
-        for i, x in enumerate(x_new):
-            # Find the appropriate interval
-            idx = np.searchsorted(self.x, x) - 1
-            idx = np.clip(idx, 0, self.n-2)
-            
-            # Calculate dx
-            dx = x - self.x[idx]
-            
-            # Evaluate cubic polynomial
-            y_new[i] = self.a[idx] + self.b[idx]*dx + self.c[idx]*dx**2 + self.d[idx]*dx**3
-        
-        return y_new
+from spline_model import create_cubic_spline, save_spline_model, evaluate_spline, PurePythonCubicSpline
 
 def linear(x):
     return x
