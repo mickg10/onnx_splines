@@ -3,6 +3,12 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 import os
 from spline_model import create_cubic_spline, save_spline_model, evaluate_spline, PurePythonCubicSpline
+import onnxruntime
+import onnx
+
+print(f"ONNX Runtime Version: {onnxruntime.__version__}")
+print(f"ONNX IR Version: {onnx.__version__}")
+print("\nRunning spline comparisons...")
 
 def linear(x):
     return x
@@ -26,12 +32,15 @@ def poly7_1(x):
     return x**7 - 3*x**5 + 2*x**3 - x
 
 def poly7_2(x):
-    return x**7 - 2*x**6 + 3*x**5 - 2*x**4 + x**3 - 2*x**2 + x - 1
+    return x**7 + 5*x**6 - 2*x**4 + 3*x**2
+
+def tanh_func(x):
+    return np.tanh(x)
 
 def compare_splines(func_name, func, domain):
     """Compare different spline implementations."""
     # Generate x values
-    x = np.linspace(domain[0], domain[1], 10)
+    x = np.linspace(domain[0], domain[1], 20)
     x_full = np.linspace(domain[0], domain[1], 100)
     
     # Get true values
@@ -79,7 +88,6 @@ def compare_splines(func_name, func, domain):
 
 def main():
     """Run the main comparison."""
-    print("Running spline comparisons...")
     print("\nMean Absolute Errors:")
     print("-" * 80)
     print(f"{'Function':<14}{'SciPy MAE':<12}{'Pure MAE':<12}{'ONNX MAE':<12}")
@@ -97,7 +105,8 @@ def main():
         ('sine', sine, (0, 2*np.pi)),
         ('sine_cosine', sine_cosine, (0, 2*np.pi)),
         ('poly7_1', poly7_1, (-1, 1)),
-        ('poly7_2', poly7_2, (-1, 1))
+        ('poly7_2', poly7_2, (-1, 1)),
+        ('tanh', tanh_func, (-2, 2))  # Using wider domain to show the asymptotic behavior
     ]
     
     # Create subplots
