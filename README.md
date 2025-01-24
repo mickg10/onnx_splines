@@ -53,6 +53,80 @@ d = ...
 y_spline = evaluate_spline('spline.onnx', x_full, x[:-1], a, b, c, d)
 ```
 
+## Building and Testing
+
+### Prerequisites
+
+- Python 3.12 with required packages (see Installation section)
+- CMake
+- Conan package manager
+- Clang compiler with C++20 support
+
+### Installation with Build Tools
+
+```bash
+# Install Python dependencies
+conda create -n onnx_py312 python=3.12
+conda activate onnx_py312
+pip install onnx onnxscript onnxruntime numpy scipy matplotlib
+
+# Install build tools
+conda install cmake conan clang
+```
+
+### Building and Testing
+
+The project includes a Makefile with several targets:
+
+```bash
+# Build everything and run all tests
+make all
+
+# Build only the C++ validator
+make build_cpp
+
+# Generate ONNX model and test data
+make generate_data
+
+# Run C++ validator tests
+make test_cpp
+
+# Run Python tests with plots
+make test_python
+
+# Clean build artifacts
+make clean
+```
+
+### Project Structure
+
+```
+.
+├── cpp_validator/        # C++ ONNX model validator
+│   ├── include/         # Header files
+│   ├── src/            # Source files
+│   ├── CMakeLists.txt  # CMake build configuration
+│   └── conanfile.txt   # Conan dependencies
+├── models/             # Generated ONNX models
+├── spline_data/        # Test data and results
+├── test_splines.py     # Python test script
+└── Makefile           # Build and test automation
+```
+
+### Validation
+
+The C++ validator (`test_cpp`) verifies the ONNX model against reference data for multiple test functions:
+- Linear function
+- Quadratic function
+- Cubic function
+- Seventh-degree polynomial
+- Sine function
+- Sine-cosine combination
+- Hyperbolic tangent
+- Custom polynomial functions
+
+Each test compares the ONNX model output with reference data and reports the maximum and mean absolute errors.
+
 ## Examples
 
 Run the test script to see comparisons between different implementations:

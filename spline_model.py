@@ -64,10 +64,15 @@ def create_cubic_spline(x: FLOAT["N"], x_known: FLOAT["M"],
     
     # Calculate absolute difference between x and x_known
     x_diff = op.Sub(x_unsqueezed, x_known)
-    x_diff_abs = op.Abs(x_diff)
+
     
-    # Find index of closest x value using argmin
-    indices = op.ArgMin(x_diff_abs, axis=1, keepdims=0)
+    # Find index of closest x value
+    x_diff_modified = op.Where(
+        op.Greater(x_diff, op.Constant(value_floats=[0.0])),
+        x_diff,
+        op.Constant(value_floats=[1e9])
+    )
+    indices = op.ArgMin(x_diff_modified, axis=1, keepdims=0)
     
     # Clip indices to valid range
     n = op.Shape(x_known)
