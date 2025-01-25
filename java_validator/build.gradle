@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.microsoft.onnxruntime:onnxruntime:1.17.0'
+    implementation 'org.apache.commons:commons-math3:3.6.1'
+    implementation 'com.opencsv:opencsv:5.9'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
+}
+
+application {
+    mainClass = 'com.splinevalidator.Main'
+}
+
+test {
+    useJUnitPlatform()
+}

@@ -1,4 +1,4 @@
-.PHONY: all build_cpp test_cpp generate_data test_python clean
+.PHONY: all build_cpp test_cpp generate_data test_python clean build_java test_java
 
 # Default conda environment
 CONDA_DIR := /Users/mickg10/miniconda3
@@ -7,11 +7,12 @@ CONDA_ACTIVATE := source $(CONDA_DIR)/etc/profile.d/conda.sh && conda activate $
 
 # Directories
 CPP_DIR := cpp_validator
+JAVA_DIR := java_validator
 BUILD_DIR := $(CPP_DIR)/build
 MODELS_DIR := models
 DATA_DIR := spline_data
 
-all: build_cpp generate_data test_cpp test_python
+all: build_cpp build_java generate_data test_cpp test_java test_python
 
 build_cpp:
 	@echo "Building C++ validator..."
@@ -51,10 +52,19 @@ test_python:
 		--model-path $(MODELS_DIR)/spline.onnx \
 		--data-dir $(DATA_DIR)
 
+build_java:
+	@echo "Building Java validator..."
+	@cd $(JAVA_DIR) && ./gradlew build
+
+test_java: build_java generate_data
+	@echo "Running Java validator tests..."
+	@cd $(JAVA_DIR) && ./gradlew test
+
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf $(BUILD_DIR)
 	@rm -rf $(MODELS_DIR)
 	@rm -rf $(DATA_DIR)
 	@rm -f spline_comparison.png
+	@cd $(JAVA_DIR) && ./gradlew clean
 	@echo "Clean complete"
